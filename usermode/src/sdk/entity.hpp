@@ -91,7 +91,7 @@ public:
     SCHEMA_ADD_FIELD(c_game_scene_node*, m_pGameSceneNode, "C_BaseEntity->m_pGameSceneNode");
     SCHEMA_ADD_FIELD(int32_t, m_iHealth, "C_BaseEntity->m_iHealth");
     SCHEMA_ADD_FIELD(e_team, m_iTeamNum, "C_BaseEntity->m_iTeamNum");
-    SCHEMA_ADD_FIELD(c_base_entity*, m_hOwnerEntity, "C_BaseEntity->m_hOwnerEntity");
+    SCHEMA_ADD_FIELD(c_base_handle, m_hOwnerEntity, "C_BaseEntity->m_hOwnerEntity");
     const f_vector& get_scene_origin();
 };
 
