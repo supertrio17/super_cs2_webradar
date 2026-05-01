@@ -1,8 +1,10 @@
-import { useEffect, useState, useMemo } from "react";
+/* eslint-disable react/prop-types */
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useEffect, useState, useMemo, useRef } from "react";
 import "./app.css";
 import PlayerCard from "./components/playercard";
 import Radar from "./components/radar";
-import { getLatency, Latency } from "./components/latency";
+import { getLatency, resetLatency, Latency } from "./components/latency";
 import MaskedIcon from "./components/maskedicon";
 import { colorSchemePallette } from "./utilities/utilities";
 
@@ -14,17 +16,23 @@ const USE_LOCALHOST = 0;
 /* you can get your public ip from https://ipinfo.io/ip */
 const PUBLIC_IP = "PUBLIC_IP".trim();
 const PORT = 22006;
+const DEFAULT_BACKGROUND_MAP = "de_mirage";
 
+const parseWebSocketPayload = async (payload) => {
+  if (typeof payload === "string") {
+    return payload;
+  }
 
+  if (payload instanceof ArrayBuffer) {
+    return new TextDecoder().decode(payload);
+  }
 
+  if (payload?.text) {
+    return payload.text();
+  }
 
-
-
-
-
-
-
-
+  return "";
+};
 
 let tempPlayer_ = null;
 let languageData = {"choosing_yourself":{"main":"Select Yourself","explanation":"This is used for some features.","warning":"Please choose <b>YOURSELF</b>!"},"settings":{"button":"Settings","title":"Radar Settings","map_brightness":"Map Brightness","player_dot_size":"Player Dot Size","bomb_size":"Bomb Size","increase_player_contrast":"Increase Player Contrast","show_only_enemies":"Show Only Enemies","enemy_names":"Enemy Names","ally_names":"Ally Names","follow_yourself":"Follow Yourself","follow_yourself_rotation":"Follow Rotation","view_player_cones":"View Player Cones","show_crosshair_lines":"Show Aim Lines","show_grenades":"Show Grenades","show_grenades_color":"Grenade Color","show_greandes_size":"Grenade Size","show_dropped_weapons":"Show Dropped Weapons","show_dropped_weapons_lighter":"Use Lighter Color","show_dropped_weapons_ignore_grenades":"Ignore Grenades","show_dropped_weapons_size":"Weapon Size","language":"Language","theme_color_text":"Theme Color","theme_colors":{"default":"Default","white":"White","light_blue":"Light Blue","dark_blue":"Dark Blue","purple":"Purple","red":"Red","orange":"Orange","yellow":"Yellow","green":"Green","light_green":"Light Green","pink":"Pink"},"choose_yourself_again_button":"Choose Yourself Again"},"bomb_timer":{"lethal":"LETHAL"},"radar_messages":{"public_ip_not_set":["A public IP address is required! Currently detected IP (",") is a private/local IP"],"websocket_connection_failed":["WebSocket connection to '","' failed. Please check the IP address and try again."],"unsupported_map":"Current map is unsupported.","connected":"Connected! Please wait for the host to join match."}}
@@ -130,6 +138,9 @@ const App = () => {
   const [showPlayerPrompt, setShowPlayerPrompt] = useState(false);
   const [showLangPrompt, setShowLangPrompt] = useState(false);
   const [radarScale, setRadarScale] = useState(1);
+  const mapDataCacheRef = useRef({});
+  const activeMapRef = useRef(null);
+  const mapSupportedRef = useRef(false);
 
   const radarZoom = (e) => {
     const delta = e.deltaY * -0.001;
@@ -181,11 +192,77 @@ const App = () => {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      let webSocket = null;
-      let webSocketURL = null;
-      let connectionTimeout = null;
+    let webSocket = null;
+    let webSocketURL = null;
+    let connectionTimeout = null;
+    let isMounted = true;
 
+    const setFallbackBackground = () => {
+      document.body.style.backgroundImage = `url(./data/${DEFAULT_BACKGROUND_MAP}/background.png)`;
+    };
+
+    const handleMapUpdate = async (mapName, players) => {
+      if (mapName === "invalid") {
+        mapSupportedRef.current = false;
+        if (activeMapRef.current !== "invalid") {
+          activeMapRef.current = "invalid";
+          setMapData({ name: "invalid" });
+          setFallbackBackground();
+        }
+        setPlayerArray([]);
+        return;
+      }
+
+      if (activeMapRef.current === mapName) {
+        setPlayerArray(mapSupportedRef.current ? players : []);
+        return;
+      }
+
+      activeMapRef.current = mapName;
+
+      const cachedMapData = mapDataCacheRef.current[mapName];
+      if (cachedMapData) {
+        mapSupportedRef.current = true;
+        setMapData(cachedMapData);
+        setPlayerArray(players);
+        document.body.style.backgroundImage = `url(./data/${mapName}/background.png)`;
+        return;
+      }
+
+      try {
+        const response = await fetch(`data/${mapName}/data.json`);
+        if (!response.ok) {
+          throw new Error("unsupported map");
+        }
+
+        const loadedMapData = {
+          ...(await response.json()),
+          name: mapName,
+        };
+
+        mapDataCacheRef.current[mapName] = loadedMapData;
+
+        if (!isMounted || activeMapRef.current !== mapName) {
+          return;
+        }
+
+        mapSupportedRef.current = true;
+        setMapData(loadedMapData);
+        setPlayerArray(players);
+        document.body.style.backgroundImage = `url(./data/${mapName}/background.png)`;
+      } catch {
+        if (!isMounted || activeMapRef.current !== mapName) {
+          return;
+        }
+
+        mapSupportedRef.current = false;
+        setMapData({ name: "unsupported" });
+        setPlayerArray([]);
+        setFallbackBackground();
+      }
+    };
+
+    const fetchData = async () => {
       if (PUBLIC_IP.startsWith("192.168")) {
         document.getElementsByClassName(
           "radar_message"
@@ -193,38 +270,41 @@ const App = () => {
         return;
       }
 
-      if (!webSocket) {
-        try {
-          if (USE_LOCALHOST) {
-            webSocketURL = `ws://localhost:${PORT}/cs2_webradar`;
-          } else {
-            webSocketURL = `ws://${EFFECTIVE_IP}:${PORT}/cs2_webradar`;
-          }
-
-          if (!webSocketURL) return;
-          webSocket = new WebSocket(webSocketURL);
-        } catch (error) {
-          document.getElementsByClassName(
-            "radar_message"
-          )[0].textContent = `${error}`;
+      try {
+        if (USE_LOCALHOST) {
+          webSocketURL = `ws://localhost:${PORT}/cs2_webradar`;
+        } else {
+          webSocketURL = `ws://${EFFECTIVE_IP}:${PORT}/cs2_webradar`;
         }
+
+        if (!webSocketURL) return;
+        webSocket = new WebSocket(webSocketURL);
+      } catch (error) {
+        document.getElementsByClassName(
+          "radar_message"
+        )[0].textContent = `${error}`;
+      }
+
+      if (!webSocket) {
+        return;
       }
 
       connectionTimeout = setTimeout(() => {
         webSocket.close();
       }, CONNECTION_TIMEOUT);
 
-      webSocket.onopen = async () => {
+      webSocket.onopen = () => {
         clearTimeout(connectionTimeout);
+        resetLatency();
         console.info("connected to the web socket");
       };
 
-      webSocket.onclose = async () => {
+      webSocket.onclose = () => {
         clearTimeout(connectionTimeout);
         console.error("disconnected from the web socket");
       };
 
-      webSocket.onerror = async (error) => {
+      webSocket.onerror = (error) => {
         clearTimeout(connectionTimeout);
         document.getElementsByClassName(
           "radar_message"
@@ -233,37 +313,40 @@ const App = () => {
       };
 
       webSocket.onmessage = async (event) => {
-        setAverageLatency(getLatency());
-
-        const parsedData = JSON.parse(await event.data.text());
-        setLocalTeam(parsedData.m_local_team);
-        setBombData(parsedData.m_bomb);
-        setGrenadeData(parsedData.m_grenades);
-        setDroppedWeaponsData(parsedData.m_dropped_weapons);
-
-        const map = parsedData.m_map;
-        if (map !== "invalid") {
-          if ((await fetch(`data/${map}/data.json`)).status == 200) {
-            setPlayerArray(parsedData.m_players);
-            setMapData({
-              ...(await (await fetch(`data/${map}/data.json`)).json()),
-              name: map,
-            }); 
-            document.body.style.backgroundImage = `url(./data/${map}/background.png)`;
-          } else {
-            setMapData({ name: "unsupported" });
-            setPlayerArray([]);
-            document.body.style.backgroundImage = `url(./data/de_mirage/background.png)`;
+        try {
+          const payload = await parseWebSocketPayload(event.data);
+          if (!payload) {
+            return;
           }
-        } else {
-          setMapData({ name: "invalid" });
-          setPlayerArray([]);
-          document.body.style.backgroundImage = `url(./data/de_mirage/background.png)`;
+
+          const parsedData = JSON.parse(payload);
+          if (!isMounted) {
+            return;
+          }
+
+          setAverageLatency(getLatency());
+          setLocalTeam(parsedData.m_local_team);
+          setBombData(parsedData.m_bomb);
+          setGrenadeData(parsedData.m_grenades);
+          setDroppedWeaponsData(parsedData.m_dropped_weapons);
+
+          await handleMapUpdate(parsedData.m_map, parsedData.m_players);
+        } catch (error) {
+          console.error("Failed to process websocket message", error);
         }
       };
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(connectionTimeout);
+
+      if (webSocket && webSocket.readyState < WebSocket.CLOSING) {
+        webSocket.close();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -273,6 +356,8 @@ const App = () => {
   if (playerArray && playerArray.length > 0) {
     tempPlayer_ = playerArray.find((player) => player.m_steam_id === settings.whichPlayerAreYou);
   }
+
+  const animationLatency = Math.min(Math.max(averageLatency || 0, 16), 120);
 
   return (
     <div className="w-screen h-screen flex flex-col"
@@ -373,7 +458,7 @@ const App = () => {
                   radarImage={(tempPlayer_ && (mapData.leveling && tempPlayer_.m_position.z < mapData.level_change) ? `./data/${mapData.name}/radar_lower.png` : `./data/${mapData.name}/radar.png`)}
                   mapData={mapData}
                   localTeam={localTeam}
-                  averageLatency={averageLatency}
+                  averageLatency={animationLatency}
                   bombData={bombData}
                   settings={settings}
                   grenadeData={grenadeData}
