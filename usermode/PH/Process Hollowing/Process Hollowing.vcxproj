@@ -34,7 +34,7 @@
     <LinkIncremental>false</LinkIncremental>
     <TargetName>usermode</TargetName>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)$(Configuration)\intermediates\</IntDir>
+    <IntDir>$(SolutionDir)$(Configuration)\intermediates\process_hollowing\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
