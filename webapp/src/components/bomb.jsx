@@ -1,7 +1,8 @@
+/* eslint-disable react/prop-types */
 import { useRef } from "react";
 import { getRadarPosition, teamEnum, calculatePositionWithScale } from "../utilities/utilities";
 
-const Bomb = ({ bombData, mapData, radarImage, localTeam, averageLatency, settings }) => {
+const Bomb = ({ bombData, mapData, radarImage, localTeam, averageLatency, settings, tempPlayer }) => {
   const radarPosition = getRadarPosition(mapData, bombData);
 
   const bombRef = useRef();
@@ -9,13 +10,19 @@ const Bomb = ({ bombData, mapData, radarImage, localTeam, averageLatency, settin
     bombRef.current.getBoundingClientRect()) || { width: 0, height: 0 };
 
   const scaledPos = calculatePositionWithScale(radarImage, radarPosition);
-    const radarImageTranslation = {
-      x: (scaledPos[0] - bombBounding.width * 0.5),
-      y: (scaledPos[1] - bombBounding.height * 0.5),
-    };
+  const radarImageTranslation = {
+    x: (scaledPos[0] - bombBounding.width * 0.5),
+    y: (scaledPos[1] - bombBounding.height * 0.5),
+  };
 
-  // Calculate bomb size based on settings
-  const baseSize = 1.5; // Base size in vw
+  const ownerEntryIdx = Number.isFinite(bombData?.owner_entry_idx) ? bombData.owner_entry_idx : -1;
+  const selectedPawnEntryIdx = Number.isFinite(tempPlayer?.m_pawn_entry_idx) ? tempPlayer.m_pawn_entry_idx : -1;
+
+  const ownerIsValid = ownerEntryIdx >= 0 && ownerEntryIdx < 0x7fff;
+  const carriedBySelectedPlayer = ownerIsValid && selectedPawnEntryIdx >= 0 && ownerEntryIdx === selectedPawnEntryIdx;
+  const hideCarriedBomb = settings.showOnlyEnemies && localTeam == teamEnum.terrorist && ownerIsValid && !carriedBySelectedPlayer;
+
+  const baseSize = 1.5;
   const scaledSize = baseSize * settings.bombSize;
 
   return (
@@ -33,7 +40,7 @@ const Bomb = ({ bombData, mapData, radarImage, localTeam, averageLatency, settin
           `#c90b0b`
         }`,
         WebkitMask: `url('./assets/icons/c4_sml.png') no-repeat center / contain`,
-        opacity: `${settings.showOnlyEnemies && bombData.owner_entity < 429496729 && localTeam == teamEnum.terrorist ? 0 : 1}`,
+        opacity: `${hideCarriedBomb ? 0 : 1}`,
         zIndex: `1`,
       }}
     />

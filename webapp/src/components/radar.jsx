@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useEffect, useRef, useState } from "react";
 import Draggable from "./Draggable"
 import Player from "./player";
@@ -95,6 +96,7 @@ const Radar = ({
           localTeam={localTeam}
           averageLatency={averageLatency}
           settings={settings}
+          tempPlayer={tempPlayer}
         />
       )}
 
@@ -107,6 +109,7 @@ const Radar = ({
           averageLatency={averageLatency}
           radarImage={radarImageRef.current}
           type={"landed"}
+          tempPlayer={tempPlayer}
         />
       ))}
 
@@ -120,6 +123,7 @@ const Radar = ({
           radarImage={radarImageRef.current}
           type={"thrown"}
           trailPoints={grenadeTrailData[`${grenade.m_idx}`] || []}
+          tempPlayer={tempPlayer}
         />
       ))}
 

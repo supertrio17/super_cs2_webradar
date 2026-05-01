@@ -56,7 +56,7 @@ namespace f::players
 namespace f::bomb
 {
     void get_carried_bomb(c_base_entity* bomb);
-    void get_planted_bomb(c_planted_c4* planted_c4);
+    bool get_planted_bomb(c_planted_c4* planted_c4);
     int calculate_bomb_damage(const f_vector* playerVec, const int32_t* playerArmor);
     void update_bomb_dmg_info(std::string map);
 }
@@ -85,5 +85,5 @@ namespace f
     inline nlohmann::json m_grenade_data = {};
     inline nlohmann::json m_grenade_thrown_data = {};
     inline nlohmann::json m_dropped_weapon_data = {};
-    inline uint32_t m_bomb_idx = 0;
+    inline uint32_t m_bomb_idx = ENT_ENTRY_MASK;
 }

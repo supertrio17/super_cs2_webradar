@@ -1,9 +1,10 @@
+/* eslint-disable react/prop-types */
 import { useRef } from "react";
 import GrenadeEffects from "./grenadeeffects.jsx";
 import { getRadarPosition, calculatePositionWithScale } from "../utilities/utilities";
 import MaskedIcon from "./maskedicon.jsx";
 
-const Grenade = ({ grenadeData, mapData, settings, averageLatency, radarImage, type, trailPoints = [] }) => {
+const Grenade = ({ grenadeData, mapData, settings, averageLatency, radarImage, type, trailPoints = [], tempPlayer }) => {
   const firePositions = grenadeData.m_firePositions || [];
 
   const radarPosition = getRadarPosition(mapData, { x: grenadeData.m_x, y: grenadeData.m_y });
@@ -19,6 +20,10 @@ const Grenade = ({ grenadeData, mapData, settings, averageLatency, radarImage, t
 
   const grenadeDuration = grenadeData.m_duration || (grenadeData.m_type == "smoke" ? 21.5 : 7);
   const grenadeDurationRatio = Math.max(0, Math.min(1, (grenadeData.m_timeleft || 0) / grenadeDuration));
+
+  const ownerEntryIdx = Number.isFinite(grenadeData?.m_owner_entry_idx) ? grenadeData.m_owner_entry_idx : -1;
+  const selectedPawnEntryIdx = Number.isFinite(tempPlayer?.m_pawn_entry_idx) ? tempPlayer.m_pawn_entry_idx : -1;
+  const isThrownBySelectedPlayer = ownerEntryIdx >= 0 && selectedPawnEntryIdx >= 0 && ownerEntryIdx === selectedPawnEntryIdx;
 
   const trailSegments = [];
   if (type == "thrown" && trailPoints.length > 1 && radarImage) {
@@ -90,7 +95,7 @@ const Grenade = ({ grenadeData, mapData, settings, averageLatency, radarImage, t
           >
 
               <label className="absolute w-full text-center text-white text-xs font-bold rounded-lg border border-white/20 bg-black/55 px-2 py-1 backdrop-blur-sm">
-                {grenadeData.m_timeleft.toFixed(1)}s
+                {`${grenadeData.m_timeleft.toFixed(1)}s${isThrownBySelectedPlayer ? " • YOU" : ""}`}
                 <span className="block mt-1 h-[2px] w-full rounded bg-white/20 overflow-hidden">
                   <span
                     className="block h-full rounded bg-orange-300"
@@ -108,6 +113,7 @@ const Grenade = ({ grenadeData, mapData, settings, averageLatency, radarImage, t
             settings={settings}
             averageLatency={averageLatency}
             radarImage={radarImage}
+            isOwnedBySelectedPlayer={isThrownBySelectedPlayer}
           />
         )}
 
@@ -125,8 +131,14 @@ const Grenade = ({ grenadeData, mapData, settings, averageLatency, radarImage, t
           <MaskedIcon
             path={`./assets/icons/${grenadeData.m_type}.svg`}
             height={`${settings.thrownGrenadeSize}vw`}
-            color={`${settings.thrownGrenadeColor}`}
+            color={`${isThrownBySelectedPlayer ? "#5fffe0" : settings.thrownGrenadeColor}`}
           />
+
+          {isThrownBySelectedPlayer && (
+            <label className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-cyan-200">
+              YOU
+            </label>
+          )}
 
         </div>
       )}

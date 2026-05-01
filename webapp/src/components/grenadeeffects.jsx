@@ -1,9 +1,10 @@
+/* eslint-disable react/prop-types */
 import { useRef } from "react";
 import { getRadarPosition, calculatePositionWithScale } from "../utilities/utilities";
 
-const GrenadeEffects = ({ grenadeData, type, mapData, averageLatency, radarImage }) => {
+const GrenadeEffects = ({ grenadeData, type, mapData, averageLatency, radarImage, isOwnedBySelectedPlayer = false }) => {
 
-    let radarScale = 1; try { let scale = radarImage.style.scale; if (scale) radarScale = scale;} catch {}
+    let radarScale = 1; try { let scale = radarImage.style.scale; if (scale) radarScale = scale;} catch { radarScale = 1; }
 
     const smokeSize = 3 * radarScale;
     const fireSize = 1.3 * radarScale;
@@ -48,7 +49,7 @@ const GrenadeEffects = ({ grenadeData, type, mapData, averageLatency, radarImage
         />
 
         <label className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-xs font-bold rounded-lg border border-white/20 bg-black/55 px-2 py-1 backdrop-blur-sm">
-          {grenadeData.m_timeleft.toFixed(1)}s
+          {`${grenadeData.m_timeleft.toFixed(1)}s${isOwnedBySelectedPlayer ? " • YOU" : ""}`}
           <span className="block mt-1 h-[2px] w-full rounded bg-white/20 overflow-hidden">
             <span
               className="block h-full rounded bg-slate-200"
