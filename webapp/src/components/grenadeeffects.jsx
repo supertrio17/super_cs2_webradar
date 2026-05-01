@@ -1,7 +1,7 @@
 import { useRef } from "react";
-import { getRadarPosition, teamEnum, calculatePositionWithScale } from "../utilities/utilities";
+import { getRadarPosition, calculatePositionWithScale } from "../utilities/utilities";
 
-const GrenadeEffects = ({ grenadeData, type, mapData, settings, averageLatency, radarImage }) => {
+const GrenadeEffects = ({ grenadeData, type, mapData, averageLatency, radarImage }) => {
 
     let radarScale = 1; try { let scale = radarImage.style.scale; if (scale) radarScale = scale;} catch {}
 
@@ -20,8 +20,11 @@ const GrenadeEffects = ({ grenadeData, type, mapData, settings, averageLatency, 
     };
 
   if (type == "smoke") {
+    const smokeDuration = grenadeData.m_duration || 21.5;
+    const smokeRatio = Math.max(0, Math.min(1, (grenadeData.m_timeleft || 0) / smokeDuration));
+
     return (
-        <div 
+        <div
         ref={grenRef}
         key={grenadeData.m_idx}
         className={`absolute rounded-[100%] left-0 top-0`}
@@ -44,18 +47,20 @@ const GrenadeEffects = ({ grenadeData, type, mapData, settings, averageLatency, 
           }}
         />
 
-        <label
-        className={`absolute w-full text-center text-white text-xs font-bold`}
-        >
-
-        {grenadeData.m_timeleft.toFixed(1)}s
-
+        <label className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-xs font-bold rounded-lg border border-white/20 bg-black/55 px-2 py-1 backdrop-blur-sm">
+          {grenadeData.m_timeleft.toFixed(1)}s
+          <span className="block mt-1 h-[2px] w-full rounded bg-white/20 overflow-hidden">
+            <span
+              className="block h-full rounded bg-slate-200"
+              style={{ width: `${smokeRatio * 100}%` }}
+            />
+          </span>
         </label>
 
         </div>
     );
   } else if (type == "molo") {
-    return ( 
+    return (
       <div
         ref={grenRef}
         className={`absolute w-full h-full origin-center rounded-[100%] bg-orange-500`}

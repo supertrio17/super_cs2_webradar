@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const SettingsButton = ({ settings, onSettingsChange, translation, languageOptions }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,7 +11,13 @@ const SettingsButton = ({ settings, onSettingsChange, translation, languageOptio
     }
   }
 
-  document.addEventListener('mousedown',closeSettingsIfOpen)
+  useEffect(() => {
+    document.addEventListener("mousedown", closeSettingsIfOpen);
+
+    return () => {
+      document.removeEventListener("mousedown", closeSettingsIfOpen);
+    };
+  });
 
   return (
     <div className="z-50" ref={settingsBut}>
@@ -159,6 +165,16 @@ const SettingsButton = ({ settings, onSettingsChange, translation, languageOptio
                   type="checkbox"
                   checked={settings.showViewCones}
                   onChange={(e) => onSettingsChange({ ...settings, showViewCones: e.target.checked })}
+                  className="relative h-5 w-9 rounded-full shadow-sm bg-radar-secondary/30 checked:bg-radar-secondary transition-colors duration-200 appearance-none before:absolute before:h-4 before:w-4 before:top-0.5 before:left-0.5 before:bg-white before:rounded-full before:transition-transform before:duration-200 checked:before:translate-x-4"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-3 rounded-lg hover:bg-radar-secondary/20 transition-colors cursor-pointer">
+                <span className="text-radar-secondary text-sm">{translation.settings.show_crosshair_lines}</span>
+                <input
+                  type="checkbox"
+                  checked={settings.showCrosshairLines}
+                  onChange={(e) => onSettingsChange({ ...settings, showCrosshairLines: e.target.checked })}
                   className="relative h-5 w-9 rounded-full shadow-sm bg-radar-secondary/30 checked:bg-radar-secondary transition-colors duration-200 appearance-none before:absolute before:h-4 before:w-4 before:top-0.5 before:left-0.5 before:bg-white before:rounded-full before:transition-transform before:duration-200 checked:before:translate-x-4"
                 />
               </label>

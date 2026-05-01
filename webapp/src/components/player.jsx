@@ -107,6 +107,14 @@ const Player = ({ playerData, mapData, radarImage, localTeam, averageLatency, se
     }
   }
 
+  const shouldDrawAimLine =
+    settings.showCrosshairLines &&
+    !playerData.m_is_dead &&
+    scaledSize > 0 &&
+    (!settings.showOnlyEnemies ||
+      playerData.m_team !== localTeam ||
+      (settings.followYourself && playerData.m_steam_id == settings.whichPlayerAreYou));
+
   return (
     <div
       className={`absolute origin-center rounded-[100%] left-0 top-0`}
@@ -151,6 +159,20 @@ const Player = ({ playerData, mapData, radarImage, localTeam, averageLatency, se
             boxShadow: `${(scaledSize!=0 && settings.increaseContrast && `0 0 0.5vh 0.5vh rgba(0,0,0, 0.5)`) || `none`}`,
           }}
         />
+
+        {shouldDrawAimLine && (
+          <div
+            className="absolute left-1/2 top-1/2 pointer-events-none"
+            style={{
+              width: `${Math.max(16, scaledSize * 13)}px`,
+              height: `2px`,
+              transform: `translate(10%, -50%)`,
+              background: `linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,255,255,0.1))`,
+              borderRadius: `999px`,
+              opacity: 0.85,
+            }}
+          />
+        )}
 
         {/* View cone (kept exactly as it was) */}
         {(settings.showOnlyEnemies && playerData.m_team === localTeam && settings.showViewCones && !playerData.m_is_dead) || (settings.showViewCones && !playerData.m_is_dead) && (

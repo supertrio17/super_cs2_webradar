@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import "./App.css";
+import "./app.css";
 import PlayerCard from "./components/playercard";
 import Radar from "./components/radar";
 import { getLatency, Latency } from "./components/latency";
@@ -27,7 +27,7 @@ const PORT = 22006;
 
 
 let tempPlayer_ = null;
-let languageData = {"choosing_yourself":{"main":"Select Yourself","explanation":"This is used for some features.","warning":"Please choose <b>YOURSELF</b>!"},"settings":{"button":"Settings","title":"Radar Settings","map_brightness":"Map Brightness","player_dot_size":"Player Dot Size","bomb_size":"Bomb Size","increase_player_contrast":"Increase Player Contrast","show_only_enemies":"Show Only Enemies","enemy_names":"Enemy Names","ally_names":"Ally Names","follow_yourself":"Follow Yourself","follow_yourself_rotation":"Follow Rotation","view_player_cones":"View Player Cones","show_grenades":"Show Grenades","show_grenades_color":"Grenade Color","show_greandes_size":"Grenade Size","show_dropped_weapons":"Show Dropped Weapons","show_dropped_weapons_lighter":"Use Lighter Color","show_dropped_weapons_ignore_grenades":"Ignore Grenades","show_dropped_weapons_size":"Weapon Size","language":"Language","theme_color_text":"Theme Color","theme_colors":{"default":"Default","white":"White","light_blue":"Light Blue","dark_blue":"Dark Blue","purple":"Purple","red":"Red","orange":"Orange","yellow":"Yellow","green":"Green","light_green":"Light Green","pink":"Pink"},"choose_yourself_again_button":"Choose Yourself Again"},"bomb_timer":{"lethal":"LETHAL"},"radar_messages":{"public_ip_not_set":["A public IP address is required! Currently detected IP (",") is a private/local IP"],"websocket_connection_failed":["WebSocket connection to '","' failed. Please check the IP address and try again."],"unsupported_map":"Current map is unsupported.","connected":"Connected! Please wait for the host to join match."}}
+let languageData = {"choosing_yourself":{"main":"Select Yourself","explanation":"This is used for some features.","warning":"Please choose <b>YOURSELF</b>!"},"settings":{"button":"Settings","title":"Radar Settings","map_brightness":"Map Brightness","player_dot_size":"Player Dot Size","bomb_size":"Bomb Size","increase_player_contrast":"Increase Player Contrast","show_only_enemies":"Show Only Enemies","enemy_names":"Enemy Names","ally_names":"Ally Names","follow_yourself":"Follow Yourself","follow_yourself_rotation":"Follow Rotation","view_player_cones":"View Player Cones","show_crosshair_lines":"Show Aim Lines","show_grenades":"Show Grenades","show_grenades_color":"Grenade Color","show_greandes_size":"Grenade Size","show_dropped_weapons":"Show Dropped Weapons","show_dropped_weapons_lighter":"Use Lighter Color","show_dropped_weapons_ignore_grenades":"Ignore Grenades","show_dropped_weapons_size":"Weapon Size","language":"Language","theme_color_text":"Theme Color","theme_colors":{"default":"Default","white":"White","light_blue":"Light Blue","dark_blue":"Dark Blue","purple":"Purple","red":"Red","orange":"Orange","yellow":"Yellow","green":"Green","light_green":"Light Green","pink":"Pink"},"choose_yourself_again_button":"Choose Yourself Again"},"bomb_timer":{"lethal":"LETHAL"},"radar_messages":{"public_ip_not_set":["A public IP address is required! Currently detected IP (",") is a private/local IP"],"websocket_connection_failed":["WebSocket connection to '","' failed. Please check the IP address and try again."],"unsupported_map":"Current map is unsupported.","connected":"Connected! Please wait for the host to join match."}}
 
 const EFFECTIVE_IP = USE_LOCALHOST ? "localhost" : PUBLIC_IP.match(/[a-zA-Z]/) ? window.location.hostname : PUBLIC_IP;
 
@@ -37,6 +37,7 @@ const DEFAULT_SETTINGS = {
   showAllNames: false,
   showEnemyNames: true,
   showViewCones: false,
+  showCrosshairLines: false,
   showOnlyEnemies: false,
   followYourself: false,
   followYourselfRotation: false,
@@ -52,7 +53,7 @@ const DEFAULT_SETTINGS = {
   increaseContrast: false,
   colorScheme: "default",
   language: "English",
-  settings_version: "1.1"
+  settings_version: "1.2"
 };
 
 const loadSettings = () => {
@@ -276,8 +277,8 @@ const App = () => {
   return (
     <div className="w-screen h-screen flex flex-col"
       style={{
-        background: `radial-gradient(50% 50% at 50% 50%, rgba(20, 40, 55, 0.95) 0%, rgba(7, 20, 30, 0.95) 100%)`,
-        backdropFilter: `blur(7.5px)`,
+        background: `radial-gradient(70% 70% at 50% 50%, rgba(22, 44, 63, 0.92) 0%, rgba(8, 20, 31, 0.97) 100%)`,
+        backdropFilter: `blur(10px)`,
       }}
     >
         {showLangPrompt && (
@@ -297,7 +298,7 @@ const App = () => {
 
       <div className={`w-full h-full flex flex-col justify-center overflow-hidden relative`} style={{transform: "rotate(0deg)"}}>
         {bombData && bombData.m_blow_time > 0 && !bombData.m_is_defused && (
-          <div className={`absolute left-1/2 top-2 flex-col items-center gap-1 z-50`}>
+          <div className={`absolute left-1/2 top-2 -translate-x-1/2 flex-col items-center gap-1 z-50 rounded-xl border border-white/20 bg-slate-900/55 px-3 py-2 backdrop-blur-md`}>
             <div className={`flex justify-center items-center gap-1`}>
               <MaskedIcon
                 path={`./assets/icons/c4_sml.png`}
@@ -350,7 +351,7 @@ const App = () => {
 
           <ul 
             id="terrorist" 
-            className="lg:flex hidden flex-col gap-1 m-0 p-0 w-[48vh]"
+            className="lg:flex hidden flex-col gap-1 m-0 p-2 w-[48vh] rounded-2xl border border-white/10 bg-slate-900/35 backdrop-blur-md max-h-[92vh] overflow-y-auto"
           >
             {(playerArray && playerArray.length > 0 && playerArray
               .filter((player) => player.m_team == 2)
@@ -365,7 +366,7 @@ const App = () => {
           </ul>
 
           {(playerArray && playerArray.length > 0 && mapData && mapData.name !== "invalid" && mapData.name !== "unsupported" && settings.whichPlayerAreYou && (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-slate-900/30 backdrop-blur-lg p-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
               <div>
                 <Radar
                   playerArray={playerArray}
@@ -411,7 +412,7 @@ const App = () => {
 
           <ul
             id="counterTerrorist"
-            className="lg:flex hidden flex-col gap-1 m-0 p-0 w-[48vh]"
+            className="lg:flex hidden flex-col gap-1 m-0 p-2 w-[48vh] rounded-2xl border border-white/10 bg-slate-900/35 backdrop-blur-md max-h-[92vh] overflow-y-auto"
           >
             {(playerArray && playerArray.length > 0 && playerArray
               .filter((player) => player.m_team == 3)

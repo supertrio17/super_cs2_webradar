@@ -3,9 +3,11 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
+#include <algorithm>
 #include <iostream>
 #include <cstdint>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <set>
 #include <regex>
@@ -29,6 +31,7 @@
 #include "utils/memory.hpp"
 
 /* core */
+#include "core/dump_a2x.hpp"
 #include "core/interfaces.hpp"
 #include "core/schema.hpp"
 
@@ -45,6 +48,7 @@
 #include "sdk/interfaces/game_entity_system.hpp"
 #include "sdk/interfaces/schema_system.hpp"
 #include "sdk/interfaces/global_vars.hpp"
+#include "sdk/interfaces/network_game_client.hpp"
 #include "core/sdk.hpp"
 
 /* features */

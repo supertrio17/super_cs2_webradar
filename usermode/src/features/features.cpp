@@ -2,6 +2,9 @@
 
 bool f::run()
 {
+	if (!sdk::m_local_controller)
+		return false;
+
 	const auto local_team = sdk::m_local_controller->m_iTeamNum();
 	if (local_team == e_team::none || local_team == e_team::spec)
 		return false;
@@ -18,16 +21,37 @@ bool f::run()
 
 void f::get_map()
 {
-	const auto map_name = i::m_global_vars->m_map_name();
-	if (map_name.empty() || map_name.find("<empty>") != std::string::npos || map_name == "")
+	if (!i::m_global_vars)
 	{
 		m_data["m_map"] = "invalid";
-
-		LOG_WARNING("Failed to get map name! Updating m_global_vars!");
-		i::m_global_vars = m_memory->read_t<c_global_vars*>(m_memory->find_pattern(CLIENT_DLL, GET_GLOBAL_VARS)->rip().as<c_global_vars*>());
+		return;
 	}
 
-	if (f::features_vars::map_name != map_name) {
+	auto map_name = i::m_global_vars->m_map_name();
+	if (map_name.empty() || map_name.find("<empty>") != std::string::npos)
+	{
+		const auto [client_base, client_size] = m_memory->get_module_info(CLIENT_DLL);
+		if (client_base.has_value() && client_size.has_value())
+			i::m_global_vars = m_memory->read_t<c_global_vars*>(client_base.value() + dump_a2x::offsets::client_dll::dw_global_vars);
+
+		if (!i::m_global_vars)
+		{
+			const auto global_vars_pattern = m_memory->find_pattern(CLIENT_DLL, GET_GLOBAL_VARS);
+			if (global_vars_pattern.has_value())
+				i::m_global_vars = m_memory->read_t<c_global_vars*>(global_vars_pattern.value().rip().as<c_global_vars*>());
+		}
+
+		map_name = i::m_global_vars ? i::m_global_vars->m_map_name() : "";
+	}
+
+	if (map_name.empty() || map_name.find("<empty>") != std::string::npos)
+	{
+		m_data["m_map"] = "invalid";
+		return;
+	}
+
+	if (f::features_vars::map_name != map_name)
+	{
 		f::bomb::update_bomb_dmg_info(map_name);
 		f::features_vars::map_name = map_name;
 	}
@@ -41,26 +65,36 @@ void f::get_player_info()
 	m_data["m_grenades"]["landed"].clear();
 	m_data["m_grenades"]["thrown"].clear();
 	m_data["m_dropped_weapons"].clear();
+	m_bomb_idx = 0;
 
 	auto* entity_system = i::m_game_entity_system;
+	if (!entity_system)
+		return;
 
-	const int32_t highest_idx = 1024;
-
-	for (int32_t idx = 0; idx < highest_idx; idx++)
+	const auto highest_entity_index = std::clamp(entity_system->get_highest_entity_index(), 0, ENT_MAX_NETWORKED_ENTRY);
+	for (int32_t idx = 0; idx <= highest_entity_index; idx++)
 	{
 		const auto entity = entity_system->get(idx);
-		if (!entity) continue;
+		if (!entity)
+			continue;
 
-		const auto entity_handle = entity->get_ref_e_handle();
-		if (!entity_handle.is_valid()) continue;
+		const auto entity_identity = entity->m_pEntity();
+		if (!entity_identity)
+			continue;
+
+		const auto designer_name = entity_identity->m_designerName();
+		const auto hashed_designer_name = designer_name.empty() ? 0 : fnv1a::hash(designer_name);
 
 		const auto class_name = entity->get_schema_class_name();
-		if (class_name.empty()) continue;
+		const auto hashed_class_name = class_name.empty() ? 0 : fnv1a::hash(class_name);
 
-		const auto hashed_class_name = fnv1a::hash(class_name);
+		const bool is_player_controller =
+			hashed_class_name == hashes::PLAYER_CONTROLLER ||
+			hashed_designer_name == hashes::PLAYER_CONTROLLER_DN;
 
-		if (hashed_class_name == hashes::PLAYER_CONTROLLER) {
-			const auto player = i::m_game_entity_system->get<c_cs_player_controller*>(entity_handle);
+		if (is_player_controller)
+		{
+			const auto player = reinterpret_cast<c_cs_player_controller*>(entity);
 			if (!player)
 				continue;
 
@@ -78,70 +112,99 @@ void f::get_player_info()
 			continue;
 		}
 
-		switch (hashed_class_name) {
-			case hashes::C4:
-				f::bomb::get_carried_bomb(entity);
-				break;
+		const bool is_carried_c4 =
+			hashed_class_name == hashes::C4 ||
+			hashed_designer_name == hashes::WEAPON_C4_DN;
 
-			case hashes::PLANTED_C4:
-				f::bomb::get_planted_bomb(reinterpret_cast<c_planted_c4*>(entity));
-				break;
+		if (is_carried_c4)
+		{
+			f::bomb::get_carried_bomb(entity);
+			continue;
+		}
 
-			case hashes::SMOKE:
-				m_grenade_data.clear();
-				m_grenade_thrown_data.clear();
+		const bool is_planted_c4 =
+			hashed_class_name == hashes::PLANTED_C4 ||
+			hashed_designer_name == hashes::PLANTED_C4_DN;
 
-				if (!f::grenades::get_smoke(reinterpret_cast<c_smoke_grenade*>(entity))) {
-					if (f::grenades::get_thrown(reinterpret_cast<c_base_grenade*>(entity))) {
+		if (is_planted_c4)
+		{
+			f::bomb::get_planted_bomb(reinterpret_cast<c_planted_c4*>(entity));
+			continue;
+		}
 
-						m_grenade_thrown_data["m_idx"] = idx;
-						m_data["m_grenades"]["thrown"].push_back(m_grenade_thrown_data);
+		const bool is_smoke_projectile =
+			hashed_class_name == hashes::SMOKE ||
+			hashed_designer_name == hashes::SMOKE_DN;
 
-					}
-					continue;
-				}
+		if (is_smoke_projectile)
+		{
+			m_grenade_data.clear();
+			m_grenade_thrown_data.clear();
 
-				m_grenade_data["m_idx"] = idx;
-				m_data["m_grenades"]["landed"].push_back(m_grenade_data);
-				break;
-
-			case hashes::INFERNO:
-				m_grenade_data.clear();
-
-				if (!f::grenades::get_molo(reinterpret_cast<c_molo_grenade*>(entity)))
-					continue;
-
-				m_grenade_data["m_idx"] = idx;
-				m_data["m_grenades"]["landed"].push_back(m_grenade_data);
-				break;
-
-			case hashes::HE:
-			case hashes::FLASH:
-			case hashes::DECOY:
-			case hashes::MOLOTOV:
-				m_grenade_thrown_data.clear();
-
-				if (!f::grenades::get_thrown(reinterpret_cast<c_base_grenade*>(entity)))
-					continue;
-
-				m_grenade_thrown_data["m_idx"] = idx;
-
-				m_data["m_grenades"]["thrown"].push_back(m_grenade_thrown_data);
-				break;
-
-			default:
-				if (f::dropped_weapons::is_weapon(entity->m_pEntity()->m_designerName()))
+			if (!f::grenades::get_smoke(reinterpret_cast<c_smoke_grenade*>(entity)))
+			{
+				if (f::grenades::get_thrown(reinterpret_cast<c_base_grenade*>(entity)))
 				{
-					m_dropped_weapon_data.clear();
-
-					if (!f::dropped_weapons::get_weapon(reinterpret_cast<c_base_entity*>(entity)))
-						continue;
-
-					m_dropped_weapon_data["m_idx"] = idx;
-
-					m_data["m_dropped_weapons"].push_back(m_dropped_weapon_data);
+					m_grenade_thrown_data["m_idx"] = idx;
+					m_data["m_grenades"]["thrown"].push_back(m_grenade_thrown_data);
 				}
-				break;
+
+				continue;
+			}
+
+			m_grenade_data["m_idx"] = idx;
+			m_data["m_grenades"]["landed"].push_back(m_grenade_data);
+			continue;
+		}
+
+		const bool is_inferno =
+			hashed_class_name == hashes::INFERNO ||
+			hashed_designer_name == hashes::INFERNO_DN;
+
+		if (is_inferno)
+		{
+			m_grenade_data.clear();
+
+			if (!f::grenades::get_molo(reinterpret_cast<c_molo_grenade*>(entity)))
+				continue;
+
+			m_grenade_data["m_idx"] = idx;
+			m_data["m_grenades"]["landed"].push_back(m_grenade_data);
+			continue;
+		}
+
+		const bool is_thrown_grenade =
+			hashed_class_name == hashes::HE ||
+			hashed_class_name == hashes::FLASH ||
+			hashed_class_name == hashes::DECOY ||
+			hashed_class_name == hashes::MOLOTOV ||
+			hashed_designer_name == hashes::HE_DN ||
+			hashed_designer_name == hashes::FLASH_DN ||
+			hashed_designer_name == hashes::DECOY_DN ||
+			hashed_designer_name == hashes::MOLOTOV_DN ||
+			hashed_designer_name == hashes::INCGRENADE_DN;
+
+		if (is_thrown_grenade)
+		{
+			m_grenade_thrown_data.clear();
+
+			if (!f::grenades::get_thrown(reinterpret_cast<c_base_grenade*>(entity)))
+				continue;
+
+			m_grenade_thrown_data["m_idx"] = idx;
+			m_data["m_grenades"]["thrown"].push_back(m_grenade_thrown_data);
+			continue;
+		}
+
+		if (f::dropped_weapons::is_weapon(designer_name))
+		{
+			m_dropped_weapon_data.clear();
+
+			if (!f::dropped_weapons::get_weapon(reinterpret_cast<c_base_entity*>(entity)))
+				continue;
+
+			m_dropped_weapon_data["m_idx"] = idx;
+			m_data["m_dropped_weapons"].push_back(m_dropped_weapon_data);
 		}
 	}
 }
