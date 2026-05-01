@@ -1,18 +1,41 @@
+/* eslint-disable react/prop-types */
+/* eslint-disable react-refresh/only-export-components */
 import SettingsButton from "./SettingsButton";
 
 let latencyData = {
   averageCount: 0,
   averageSum: 0,
   averageTime: 0,
-  lastTime: new Date().getTime(),
+  lastTime: 0,
+};
+
+export const resetLatency = () => {
+  latencyData = {
+    averageCount: 0,
+    averageSum: 0,
+    averageTime: 0,
+    lastTime: performance.now(),
+  };
 };
 
 export const getLatency = () => {
-  let currentTime = new Date().getTime();
-  let diffInMs = currentTime - latencyData.lastTime;
+  const currentTime = performance.now();
+
+  if (!latencyData.lastTime) {
+    latencyData.lastTime = currentTime;
+    return latencyData.averageTime;
+  }
+
+  const diffInMs = currentTime - latencyData.lastTime;
   latencyData.lastTime = currentTime;
 
-  if (latencyData.averageTime == 0) latencyData.averageTime = diffInMs;
+  if (!Number.isFinite(diffInMs) || diffInMs <= 0) {
+    return latencyData.averageTime;
+  }
+
+  if (latencyData.averageTime === 0) {
+    latencyData.averageTime = diffInMs;
+  }
 
   latencyData.averageCount++;
   latencyData.averageSum += diffInMs;

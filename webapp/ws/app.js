@@ -1,4 +1,4 @@
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
 
 console.log("web_server started")
@@ -14,9 +14,12 @@ web_socket_server.on("connection", (web_socket, request) => {
     const client_address = request.socket.remoteAddress.replace("::ffff:", "");
     console.info(`${client_address} connected`);
 
-    web_socket.on("message", (message) => {
+    web_socket.on("message", (message, isBinary) => {
         web_socket_server.clients.forEach((client) => {
-            client.send(message);
+            if (client === web_socket || client.readyState !== WebSocket.OPEN)
+                return;
+
+            client.send(message, { binary: isBinary });
         });
     });
 
