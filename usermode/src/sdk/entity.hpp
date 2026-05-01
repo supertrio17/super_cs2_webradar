@@ -92,7 +92,7 @@ public:
     SCHEMA_ADD_FIELD(int32_t, m_iHealth, "C_BaseEntity->m_iHealth");
     SCHEMA_ADD_FIELD(e_team, m_iTeamNum, "C_BaseEntity->m_iTeamNum");
     SCHEMA_ADD_FIELD(c_base_handle, m_hOwnerEntity, "C_BaseEntity->m_hOwnerEntity");
-    const f_vector& get_scene_origin();
+    f_vector get_scene_origin();
 };
 
 class c_player_weapon_services
@@ -152,7 +152,7 @@ public:
     static c_cs_player_controller* get_local_player_controller();
     c_cs_player_pawn* get_player_pawn();
     const e_colors get_color();
-    const f_vector& get_vec_origin();
+    f_vector get_vec_origin();
 };
 
 class c_planted_c4 : public c_base_entity

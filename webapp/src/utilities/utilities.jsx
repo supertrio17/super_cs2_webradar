@@ -1,11 +1,20 @@
 export const getRadarPosition = (mapData, entityCoords) => {
   const divide = 1024;
 
-  if (!entityCoords.x || !entityCoords.y) {
+  const hasValidEntityCoords =
+    Number.isFinite(entityCoords?.x) && Number.isFinite(entityCoords?.y);
+
+  if (!hasValidEntityCoords) {
     return { x: 0, y: 0 };
   }
 
-  if (!mapData.x || !mapData.y) {
+  const hasValidMapData =
+    Number.isFinite(mapData?.x) &&
+    Number.isFinite(mapData?.y) &&
+    Number.isFinite(mapData?.scale) &&
+    mapData.scale !== 0;
+
+  if (!hasValidMapData) {
     return { x: 0, y: 0 };
   }
 
